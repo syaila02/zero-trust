@@ -1,0 +1,14 @@
+{
+  "name": "sintesys-zero-trust-backend",
+  "version": "1.0.0",
+  "description": "Simulasi Backend Zero Trust Architecture (NIST SP 800-207) untuk Sistem Akademik Sintesys",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

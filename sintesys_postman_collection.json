@@ -1,0 +1,239 @@
+{
+  "info": {
+    "_postman_id": "893d5f32-7a8e-4a8b-9e4a-9e58e652c710",
+    "name": "Sintesys - Zero Trust Architecture (NIST SP 800-207) API",
+    "description": "Koleksi pengujian Postman untuk simulasi Zero Trust Architecture pada backend Sintesys. Mencakup pengujian Short-Lived Token, Trust Algorithm Context (Device/Network), dan Object-Level Authorization (IDOR).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token_dosen_budi",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_dosen_siti",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01. Auth - Login Dosen Budi (Pengampu IF301)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.accessToken) {",
+              "    pm.collectionVariables.set('token_dosen_budi', jsonData.accessToken);",
+              "    console.log('Short-Lived Token Dosen Budi tersimpan.');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"username\": \"dosen_budi\",\n    \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        },
+        "description": "Mengambil Short-Lived Token untuk Dr. Budi (Dosen IF301)."
+      }
+    },
+    {
+      "name": "02. Auth - Login Dosen Siti (Pengampu IF302)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.accessToken) {",
+              "    pm.collectionVariables.set('token_dosen_siti', jsonData.accessToken);",
+              "    console.log('Short-Lived Token Dosen Siti tersimpan.');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"username\": \"dosen_siti\",\n    \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        },
+        "description": "Mengambil Short-Lived Token untuk Dr. Siti (Dosen IF302)."
+      }
+    },
+    {
+      "name": "03. Skenario 1 (ALLOW) - Akses Kelas Sendiri dengan Managed Device & Jaringan Kampus",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_dosen_budi}}"
+          },
+          {
+            "key": "x-device-status",
+            "value": "managed"
+          },
+          {
+            "key": "x-network-zone",
+            "value": "campus"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/grades/courses/IF301",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "grades", "courses", "IF301"]
+        },
+        "description": "Kondisi ideal: Token valid + Device managed + Jaringan campus + Dosen pengampu IF301. Expected: 200 OK (ALLOW)."
+      }
+    },
+    {
+      "name": "04. Skenario 2 (DENY - PDP Trust Algorithm) - Token Valid tapi Perangkat Unmanaged",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_dosen_budi}}"
+          },
+          {
+            "key": "x-device-status",
+            "value": "unmanaged"
+          },
+          {
+            "key": "x-network-zone",
+            "value": "campus"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/grades/courses/IF301",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "grades", "courses", "IF301"]
+        },
+        "description": "Token valid, namun perangkat 'unmanaged' (misal: laptop pribadi non-MDM). PDP menolak permintaan. Expected: 403 Forbidden (DENY)."
+      }
+    },
+    {
+      "name": "05. Skenario 3 (DENY - PDP Trust Algorithm) - Update Nilai dari Jaringan Publik",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_dosen_budi}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-device-status",
+            "value": "managed"
+          },
+          {
+            "key": "x-network-zone",
+            "value": "public"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"midtermScore\": 95,\n    \"finalScore\": 98\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/grades/courses/IF301/students/MHS001",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "grades", "courses", "IF301", "students", "MHS001"]
+        },
+        "description": "Aksi sensitif (WRITE) dari jaringan publik tidak diizinkan oleh Trust Algorithm. Expected: 403 Forbidden (DENY)."
+      }
+    },
+    {
+      "name": "06. Skenario 4 (DENY - Object-Level Auth / IDOR) - Akses Kelas Dosen Lain",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_dosen_budi}}"
+          },
+          {
+            "key": "x-device-status",
+            "value": "managed"
+          },
+          {
+            "key": "x-network-zone",
+            "value": "campus"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/grades/courses/IF302",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "grades", "courses", "IF302"]
+        },
+        "description": "Dosen Budi mencoba melihat nilai mata kuliah IF302 (milik Dosen Siti). Lolos di PEP dan PDP, namun DIBLOKIR oleh Controller (Object-Level Authorization) untuk mencegah IDOR. Expected: 403 Forbidden (DENY)."
+      }
+    },
+    {
+      "name": "07. Skenario 5 (DENY - PEP Expired Token) - Verifikasi Token Kedaluwarsa",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJET1NFTjAwMSIsInVzZXJuYW1lIjoiZG9zZW5fYnVkaSIsInJvbGUiOiJET1NFTiIsImFzc2lnbmVkQ291cnNlcyI6WyJJRjMwMSJdLCJpYXQiOjE2MDAwMDAwMDAsImV4cCI6MTYwMDAwMDAwMX0.dummySignature"
+          },
+          {
+            "key": "x-device-status",
+            "value": "managed"
+          },
+          {
+            "key": "x-network-zone",
+            "value": "campus"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/grades/courses/IF301",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "grades", "courses", "IF301"]
+        },
+        "description": "Request menggunakan token kedaluwarsa/palsu langsung dicegat di pintu gerbang PEP (Verify Explicitly). Expected: 401 Unauthorized (DENY)."
+      }
+    }
+  ]
+}
